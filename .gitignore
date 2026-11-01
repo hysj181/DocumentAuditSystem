@@ -1,0 +1,58 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+*.egg-info/
+build/
+dist/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# PaddleOCR / PaddleX model cache
+.paddlex_cache/
+
+# Generated project outputs
+project1_extraction/output/batches/*
+project1_extraction/output/excel/*
+project1_extraction/output/json/*
+project1_extraction/output/markdown/*
+!project1_extraction/output/batches/.gitkeep
+!project1_extraction/output/excel/.gitkeep
+!project1_extraction/output/json/.gitkeep
+!project1_extraction/output/markdown/.gitkeep
+project2_word_audit/output/
+project3_cli_workflow/output/
+
+# Logs
+logs/
+*.log
+
+# Local acceptance / manual evidence, never upload
+acceptance_mixed_*/
+my_test/
+_local/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# IDE / OS
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+Thumbs.db
+Desktop.ini
+.DS_Store

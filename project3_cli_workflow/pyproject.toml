@@ -1,0 +1,29 @@
+[project]
+name = "project3-cli-workflow"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "你的用户名" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2.14.2",
+    "rich>=15.0.0",
+    "typer>=0.27.3",
+]
+
+[project.scripts]
+project3 = "project3_cli_workflow.cli:main"
+project3-cli-workflow = "project3_cli_workflow.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.13.6,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.17.3",
+]

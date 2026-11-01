@@ -1,0 +1,22 @@
+[project]
+name = "project2-word-audit"
+version = "0.1.0"
+description = "Word document mathematical audit and annotation tool"
+readme = "README.md"
+requires-python = ">=3.12"
+authors = []
+dependencies = [
+    "pymupdf<2",
+    "python-docx>=1.2.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.13.6,<0.14.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "word_audit"
+module-root = "src"
+
+[dependency-groups]
+dev = []

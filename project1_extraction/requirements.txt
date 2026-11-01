@@ -1,0 +1,11 @@
+PySide6>=6.7,<7
+python-docx>=1.1
+# PyMuPDF 仅用于 PDF 页面图像渲染，不参与文字/表格解析
+PyMuPDF>=1.24
+openpyxl>=3.1
+# PDF 解析单引擎：PaddleOCR PP-StructureV3
+paddleocr>=3,<4
+paddlepaddle>=3,<4
+# PaddleOCR 官方云端 API 客户端使用 requests
+requests>=2.31
+pytest>=8.0

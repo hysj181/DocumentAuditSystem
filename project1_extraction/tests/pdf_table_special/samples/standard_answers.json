@@ -1,0 +1,295 @@
+{
+  "description": "项目一 PDF 表格专项模拟样本标准答案（独立于 test_data）",
+  "samples": {
+    "bordered_special_values.pdf": {
+      "type": "native_pdf_bordered",
+      "table": {
+        "rows": 9,
+        "columns": 5,
+        "header": [
+          "监测点位",
+          "指标",
+          "数值",
+          "单位",
+          "监测日期"
+        ],
+        "grid": [
+          [
+            "监测点位",
+            "指标",
+            "数值",
+            "单位",
+            "监测日期"
+          ],
+          [
+            "DW001 废水总排口",
+            "COD",
+            "45.2",
+            "mg/L",
+            "2024-07-01"
+          ],
+          [
+            "DW001 废水总排口",
+            "总磷",
+            "<0.01",
+            "mg/L",
+            "2024-07-01"
+          ],
+          [
+            "DW001 废水总排口",
+            "悬浮物",
+            "—",
+            "mg/L",
+            "2024-07-01"
+          ],
+          [
+            "DW001 废水总排口",
+            "pH",
+            "7.3",
+            "无量纲",
+            "2024-07-01"
+          ],
+          [
+            "DA001 废气排放口",
+            "二氧化硫",
+            "ND",
+            "mg/m3",
+            "2024-07-02"
+          ],
+          [
+            "DA001 废气排放口",
+            "氮氧化物",
+            "35.2",
+            "mg/m3",
+            "2024-07-02"
+          ],
+          [
+            "DA001 废气排放口",
+            "颗粒物",
+            "8.6",
+            "mg/m3",
+            "2024-07-02"
+          ],
+          [
+            "厂界东侧",
+            "噪声",
+            "55.6",
+            "dB(A)",
+            "2024-07-02"
+          ]
+        ]
+      },
+      "environmental": [
+        {
+          "indicator": "COD",
+          "value": 45.2,
+          "unit": "mg/L",
+          "point": "废水总排口",
+          "time": "2024-07-01",
+          "detection_limit": null,
+          "row_index": 1,
+          "column_index": 1
+        },
+        {
+          "indicator": "总磷",
+          "value": null,
+          "unit": "mg/L",
+          "point": "废水总排口",
+          "time": "2024-07-01",
+          "detection_limit": "<0.01",
+          "row_index": 2,
+          "column_index": 1
+        },
+        {
+          "indicator": "悬浮物",
+          "value": null,
+          "unit": "mg/L",
+          "point": "废水总排口",
+          "time": "2024-07-01",
+          "detection_limit": null,
+          "row_index": 3,
+          "column_index": 1
+        },
+        {
+          "indicator": "pH",
+          "value": 7.3,
+          "unit": "无量纲",
+          "point": "废水总排口",
+          "time": "2024-07-01",
+          "detection_limit": null,
+          "row_index": 4,
+          "column_index": 1
+        },
+        {
+          "indicator": "二氧化硫",
+          "value": null,
+          "unit": "mg/m³",
+          "point": "废气排放口",
+          "time": "2024-07-02",
+          "detection_limit": "ND",
+          "row_index": 5,
+          "column_index": 1
+        },
+        {
+          "indicator": "氮氧化物",
+          "value": 35.2,
+          "unit": "mg/m³",
+          "point": "废气排放口",
+          "time": "2024-07-02",
+          "detection_limit": null,
+          "row_index": 6,
+          "column_index": 1
+        },
+        {
+          "indicator": "颗粒物",
+          "value": 8.6,
+          "unit": "mg/m³",
+          "point": "废气排放口",
+          "time": "2024-07-02",
+          "detection_limit": null,
+          "row_index": 7,
+          "column_index": 1
+        },
+        {
+          "indicator": "噪声",
+          "value": 55.6,
+          "unit": "dB(A)",
+          "point": "厂界东侧",
+          "time": "2024-07-02",
+          "detection_limit": null,
+          "row_index": 8,
+          "column_index": 1
+        }
+      ]
+    },
+    "scanned_special_values.pdf": {
+      "type": "scanned_pdf",
+      "source": "bordered_special_values.pdf",
+      "expected_table_detection": "depends_on_engine",
+      "environmental": [
+        {
+          "indicator": "COD",
+          "value": 45.2,
+          "unit": "mg/L",
+          "point": "废水总排口",
+          "time": "2024-07-01",
+          "detection_limit": null,
+          "row_index": 1,
+          "column_index": 1
+        },
+        {
+          "indicator": "总磷",
+          "value": null,
+          "unit": "mg/L",
+          "point": "废水总排口",
+          "time": "2024-07-01",
+          "detection_limit": "<0.01",
+          "row_index": 2,
+          "column_index": 1
+        },
+        {
+          "indicator": "悬浮物",
+          "value": null,
+          "unit": "mg/L",
+          "point": "废水总排口",
+          "time": "2024-07-01",
+          "detection_limit": null,
+          "row_index": 3,
+          "column_index": 1
+        },
+        {
+          "indicator": "pH",
+          "value": 7.3,
+          "unit": "无量纲",
+          "point": "废水总排口",
+          "time": "2024-07-01",
+          "detection_limit": null,
+          "row_index": 4,
+          "column_index": 1
+        },
+        {
+          "indicator": "二氧化硫",
+          "value": null,
+          "unit": "mg/m³",
+          "point": "废气排放口",
+          "time": "2024-07-02",
+          "detection_limit": "ND",
+          "row_index": 5,
+          "column_index": 1
+        },
+        {
+          "indicator": "氮氧化物",
+          "value": 35.2,
+          "unit": "mg/m³",
+          "point": "废气排放口",
+          "time": "2024-07-02",
+          "detection_limit": null,
+          "row_index": 6,
+          "column_index": 1
+        },
+        {
+          "indicator": "颗粒物",
+          "value": 8.6,
+          "unit": "mg/m³",
+          "point": "废气排放口",
+          "time": "2024-07-02",
+          "detection_limit": null,
+          "row_index": 7,
+          "column_index": 1
+        },
+        {
+          "indicator": "噪声",
+          "value": 55.6,
+          "unit": "dB(A)",
+          "point": "厂界东侧",
+          "time": "2024-07-02",
+          "detection_limit": null,
+          "row_index": 8,
+          "column_index": 1
+        }
+      ]
+    },
+    "borderless_native.pdf": {
+      "type": "native_pdf_borderless",
+      "table": {
+        "rows": 3,
+        "columns": 6,
+        "header": [
+          "监测点位",
+          "COD(mg/L)",
+          "氨氮(mg/L)",
+          "总磷(mg/L)",
+          "pH",
+          "监测日期"
+        ],
+        "grid": [
+          [
+            "监测点位",
+            "COD(mg/L)",
+            "氨氮(mg/L)",
+            "总磷(mg/L)",
+            "pH",
+            "监测日期"
+          ],
+          [
+            "DW001 废水总排口",
+            "45.2",
+            "1.23",
+            "<0.01",
+            "7.3",
+            "2024-05-01"
+          ],
+          [
+            "DA001 废气排放口",
+            "",
+            "",
+            "",
+            "",
+            "2024-05-01"
+          ]
+        ]
+      },
+      "known_limitation": "PyMuPDF 与 PP-StructureV3 在当前样本上均未检出无边框表格"
+    }
+  }
+}
