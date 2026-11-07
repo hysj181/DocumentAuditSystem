@@ -126,7 +126,7 @@ project3_cli_workflow/
 ## 安装
 
 ```powershell
-cd D:\DocumentAuditSystem\project3_cli_workflow
+cd <仓库根目录>/project3_cli_workflow
 uv sync
 ```
 
@@ -143,19 +143,19 @@ uv run project3 run "<Word或PDF路径>" --output-root "<输出根目录>"
 多种输入：
 
 ```powershell
-uv run project3 run "文件1.docx" "文件2.pdf" --output-root "D:\AuditOutput"
+uv run project3 run "文件1.docx" "文件2.pdf" --output-root "<输出根目录>"
 ```
 
 文件夹输入：
 
 ```powershell
-uv run project3 run "D:\待审核资料" --output-root "D:\AuditOutput"
+uv run project3 run "<待审核目录>" --output-root "<输出根目录>"
 ```
 
 递归扫描：
 
 ```powershell
-uv run project3 run "D:\待审核资料" --recursive --output-root "D:\AuditOutput"
+uv run project3 run "<待审核目录>" --recursive --output-root "<输出根目录>"
 ```
 
 ### 断点恢复
@@ -167,7 +167,7 @@ uv run project3 resume <job_id> --output-root "<输出根目录>"
 ### 重新生成交付
 
 ```powershell
-uv run project3 deliver --manifest "<任务目录>\manifest.json"
+uv run project3 deliver --manifest "<输出根目录>/<job_id>/manifest.json"
 ```
 
 ### 查看帮助

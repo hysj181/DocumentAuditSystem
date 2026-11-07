@@ -21,7 +21,7 @@ def _record() -> EnvironmentalRecord:
         enterprise_name="测试企业有限公司",
         unified_social_credit_code="91310115MA1K4A2B3C",
         document_id="doc-1",
-        source_file="C:/data/report.docx",
+        source_file="sample/report.docx",
         file_type="word",
         indicator="COD",
         value=45.2,
@@ -57,7 +57,7 @@ def test_environmental_result_aggregation() -> None:
         unified_social_credit_code="91310115MA1K4A2B3C",
         identity_status="verified",
         document_ids=["doc-1"],
-        source_files=["C:/data/report.docx"],
+        source_files=["sample/report.docx"],
     )
     result = EnvironmentalExtractionResult(
         enterprises=[enterprise],

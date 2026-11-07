@@ -12,7 +12,11 @@ from typing import Annotated, NoReturn
 
 import typer
 
-from project3_cli_workflow.config import ProjectConfig, load_config
+from project3_cli_workflow.config import (
+    ProjectConfig,
+    load_config,
+    resolve_output_root,
+)
 from project3_cli_workflow.delivery import DeliveryResult, run_delivery
 from project3_cli_workflow.errors import (
     ExitCode,
@@ -656,13 +660,13 @@ def resume(
         typer.Argument(help="要恢复的任务 ID。"),
     ],
     output_root: Annotated[
-        Path,
+        Path | None,
         typer.Option(
             "--output-root",
             "-o",
-            help="任务输出根目录。",
+            help="任务输出根目录；省略时使用项目三的 output 目录。",
         ),
-    ] = Path("output"),
+    ] = None,
     extraction_timeout: Annotated[
         float,
         typer.Option(
@@ -715,7 +719,8 @@ def resume(
             project2_root=project2_root,
             project2_python=project2_python,
         )
-        manifest_path = find_manifest_by_job_id(output_root, job_id)
+        resolved_output_root = resolve_output_root(output_root)
+        manifest_path = find_manifest_by_job_id(resolved_output_root, job_id)
         if manifest_path is None:
             raise InputError(f"未找到任务：{job_id}")
     except Project3Error as exc:

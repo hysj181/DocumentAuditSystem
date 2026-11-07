@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -9,21 +10,13 @@ from pathlib import Path
 import pymupdf
 from docx import Document
 from docx.shared import RGBColor
+from real_batch_support import real_batch_path
 
 from word_audit.annotation import annotate_issues
 from word_audit.location import locate_issues
 from word_audit.pipeline import run_audit
 from word_audit.project1_batch import Project1Batch
 from word_audit.typo_audit import scan_batch_typos
-
-REAL_BATCH_PATH = (
-    Path(__file__).resolve().parents[2]
-    / "project1_extraction"
-    / "output"
-    / "batches"
-    / "20261101T053459830362Z_0e022780"
-    / "batch.json"
-)
 
 
 def _sha256(path: Path) -> str:
@@ -290,10 +283,12 @@ class SyntheticWordTypoTests(unittest.TestCase):
 
 
 def _cjk_font_path() -> Path:
+    windows_dir = Path(os.environ.get("WINDIR", r"C:\Windows"))
+    fonts_dir = windows_dir / "Fonts"
     candidates = [
-        Path(r"C:\Windows\Fonts\simhei.ttf"),
-        Path(r"C:\Windows\Fonts\msyh.ttc"),
-        Path(r"C:\Windows\Fonts\simsun.ttc"),
+        fonts_dir / "simhei.ttf",
+        fonts_dir / "msyh.ttc",
+        fonts_dir / "simsun.ttc",
     ]
     for candidate in candidates:
         if candidate.is_file():
@@ -687,7 +682,7 @@ class TypoPipelineTests(unittest.TestCase):
     def test_real_batch_typo_counts_are_consistent_and_not_synthetic(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            result = run_audit(REAL_BATCH_PATH, root / "output")
+            result = run_audit(real_batch_path(), root / "output")
             pipeline = result.report.metadata["pipeline"]
             typo_issues = [
                 issue for issue in result.report.issues if issue.issue_type == "typo"
@@ -717,7 +712,7 @@ class TypoPipelineTests(unittest.TestCase):
                 high_count + low_count,
             )
             self.assertFalse(pipeline["synthetic_data"])
-            self.assertTrue(REAL_BATCH_PATH.is_file())
+            self.assertTrue(real_batch_path().is_file())
 
 
 if __name__ == "__main__":

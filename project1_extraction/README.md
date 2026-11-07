@@ -106,27 +106,28 @@ PDF 的 PP-StructureV3 初始化参数包含 `enable_mkldnn=False`，用于规�
 ## 安装
 
 ```powershell
-# 1. 创建虚拟环境（仓库中已完成，可跳过）
-py -3.12 -m venv .venv
+# 1. 进入项目根目录
+cd <仓库根目录>/project1_extraction
 
-# 2. 激活虚拟环境
-.\.venv\Scripts\Activate.ps1
+# 2. 同步运行依赖（uv 会根据 .python-version 使用 Python 3.12）
+uv sync
 
-# 3. 安装依赖
-python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
-python -m pip install -e .
+# 3. 开发/测试时额外安装 pytest
+uv sync --extra dev
 
 # PaddleOCR / PaddlePaddle / requests 已包含在主依赖中
 # PDF 解析支持 local_gpu 与 cloud_api 两种模式
 ```
+
+`requirements.txt` 仅作为兼容文件保留，不再是主要安装方式。依赖版本以
+`pyproject.toml` 和 `uv.lock` 为准。
 
 首次运行 PP-StructureV3 会自动下载模型。Windows 用户名包含中文时，Paddle
 原生推理无法打开含中文的模型路径，程序会自动将模型缓存指向项目下
 `.paddlex_cache/`（ASCII 路径）；也可手动设置：
 
 ```powershell
-$env:PADDLE_PDX_CACHE_HOME = "D:\path\to\ascii\paddlex_cache"
+$env:PADDLE_PDX_CACHE_HOME = "<ASCII 缓存目录>"
 ```
 
 ### 云端 API Token 安全配置
@@ -137,7 +138,7 @@ $env:PADDLE_PDX_CACHE_HOME = "D:\path\to\ascii\paddlex_cache"
 
 ```powershell
 $env:PADDLEOCR_ACCESS_TOKEN = "你的 Token"
-.\.venv\Scripts\python.exe -m doc_extractor
+uv run python -m doc_extractor
 ```
 
 需要让以后启动的软件也能读取时，使用 Windows 用户环境变量（不要写入项目文件）：
@@ -157,20 +158,20 @@ Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
 ## 启动
 
 ```powershell
-.\.venv\Scripts\python.exe -m doc_extractor
+uv run python -m doc_extractor
 ```
 
 或：
 
 ```powershell
-.\.venv\Scripts\doc-extractor.exe
+uv run doc-extractor
 ```
 
 无界面冒烟验证：
 
 ```powershell
 $env:QT_QPA_PLATFORM = "offscreen"
-.\.venv\Scripts\python.exe -m doc_extractor --smoke-test
+uv run python -m doc_extractor --smoke-test
 ```
 
 ## 命令行使用
@@ -179,30 +180,30 @@ $env:QT_QPA_PLATFORM = "offscreen"
 
 ```powershell
 # 查看帮助
-.\.venv\Scripts\python.exe main.py --help
+uv run python main.py --help
 
 # 提取单个 Word
-.\.venv\Scripts\python.exe main.py extract --input "test_data\01_企业废水监测报告.docx"
+uv run python main.py extract --input "test_data\01_企业废水监测报告.docx"
 
 # 提取单个 PDF
-.\.venv\Scripts\python.exe main.py extract --input "test_data\02_企业废气监测报告.pdf"
+uv run python main.py extract --input "test_data\02_企业废气监测报告.pdf"
 
 # 多文件批量提取，并额外保存 Markdown 和 Excel
-.\.venv\Scripts\python.exe main.py extract `
+uv run python main.py extract `
   --input "test_data\01_企业废水监测报告.docx" `
   --input "test_data\02_企业废气监测报告.pdf" `
   --save-format json --save-format markdown --save-format excel
 
 # 导出最新批次的 JSON / Markdown / Excel
-.\.venv\Scripts\python.exe main.py export --format json
-.\.venv\Scripts\python.exe main.py export --format markdown
-.\.venv\Scripts\python.exe main.py export --format excel
+uv run python main.py export --format json
+uv run python main.py export --format markdown
+uv run python main.py export --format excel
 
 # 指定批次导出
-.\.venv\Scripts\python.exe main.py export --format markdown --batch-id <batch_id>
+uv run python main.py export --format markdown --batch-id <batch_id>
 
 # 从任意批次 JSON 文件导出，并指定输出路径
-.\.venv\Scripts\python.exe main.py export `
+uv run python main.py export `
   --format json `
   --batch-file "output\batches\<batch_id>\batch.json" `
   --output "output\json\restored.json"
@@ -469,7 +470,7 @@ project1_extraction/
 
 ```powershell
 $env:QT_QPA_PLATFORM = "offscreen"
-.\.venv\Scripts\python.exe -m pytest -q
+uv run python -m pytest -q
 ```
 
 新增 PDF 表格测试使用独立的模拟样本与标准答案（`tests/table_test_support.py`、
@@ -481,15 +482,15 @@ $env:QT_QPA_PLATFORM = "offscreen"
 真实 PP-StructureV3 模型测试默认跳过，需要显式启用：
 
 ```powershell
-$env:PADDLE_PDX_CACHE_HOME = "D:\DocumentAuditSystem\project1_extraction\.paddlex_cache"
+$env:PADDLE_PDX_CACHE_HOME = "<仓库根目录>/project1_extraction/.paddlex_cache"
 $env:RUN_PADDLE_STRUCTURE_TESTS = "1"
-.\.venv\Scripts\python.exe -m pytest tests\test_paddle_real.py -q
+uv run python -m pytest tests\test_paddle_real.py -q
 ```
 
 真实测试数据与标准答案位于 `test_data/`。生成 Markdown 测试报告和 Excel 对比结果：
 
 ```powershell
-.\.venv\Scripts\python.exe tests\generate_test_report.py
+uv run python tests\generate_test_report.py
 ```
 
 生成文件：

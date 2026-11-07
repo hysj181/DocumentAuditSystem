@@ -11,12 +11,13 @@ from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication
 
 from doc_extractor import __version__
+from doc_extractor.config import resolve_log_dir
 from doc_extractor.core.paddle_structure import ensure_paddle_cache_dir
 from doc_extractor.ui.main_window import MainWindow
 
 
 def _setup_logging() -> Path:
-    log_dir = Path(__file__).resolve().parents[2] / "logs"
+    log_dir = resolve_log_dir()
     log_dir.mkdir(parents=True, exist_ok=True)
     log_path = log_dir / "doc_extractor.log"
     handler = RotatingFileHandler(

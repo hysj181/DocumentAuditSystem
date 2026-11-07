@@ -29,14 +29,14 @@
 ## 安装
 
 ```powershell
-cd D:\DocumentAuditSystem\project2_word_audit
+cd <仓库根目录>/project2_word_audit
 uv sync
 ```
 
 依赖：
 
 - `python-docx`
-- `pymupdf<2`
+- `pymupdf==2.0`
 
 ## CLI 命令
 
@@ -44,8 +44,8 @@ uv sync
 
 ```powershell
 uv run python main.py audit `
-  --batch-json "D:\DocumentAuditSystem\project1_extraction\output\batches\20261101T053459830362Z_0e022780\batch.json" `
-  --output-dir "output"
+  --batch-json "<项目一输出>/batches/<batch_id>/batch.json" `
+  --output-dir "<输出根目录>"
 ```
 
 参数：
@@ -53,7 +53,7 @@ uv run python main.py audit `
 | 参数 | 必填 | 说明 |
 | --- | --- | --- |
 | `--batch-json` | 是 | 项目一批次 JSON 路径 |
-| `--output-dir` | 否 | 输出根目录，默认 `output` |
+| `--output-dir` | 否 | 输出根目录，默认项目二根目录下的 `output/` |
 | `--help` | - | 查看完整帮助 |
 
 行为：
@@ -67,7 +67,7 @@ uv run python main.py audit `
 
 ```powershell
 uv run python main.py validate-batch `
-  --batch-json "D:\DocumentAuditSystem\project1_extraction\output\batches\20261101T053459830362Z_0e022780\batch.json"
+  --batch-json "<项目一输出>/batches/<batch_id>/batch.json"
 ```
 
 `validate-batch` 还支持 `--output <路径>` 指定数学校验报告路径；省略时写入
@@ -246,7 +246,8 @@ metadata.pipeline.typo_counts
 ## 测试
 
 ```powershell
-uv run python -m unittest discover -s tests -v
+# 项目二完整测试（含真实批次夹具）在统一环境 project3_web 中运行：
+uv run --project ../project3_web pytest tests -q
 ```
 
 真实批次测试只读；合成测试使用临时目录，并带有 `metadata.synthetic_data = true` 标记。

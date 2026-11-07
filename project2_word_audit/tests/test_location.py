@@ -5,6 +5,7 @@ import unittest
 from pathlib import Path
 
 import pymupdf
+from real_batch_support import real_batch_path
 
 from word_audit.location import (
     locate_issue,
@@ -14,15 +15,6 @@ from word_audit.location import (
 from word_audit.math_audit import validate_batch
 from word_audit.models import AuditIssue, SourceLocation
 from word_audit.project1_batch import Project1Batch
-
-BATCH_PATH = (
-    Path(__file__).resolve().parents[2]
-    / "project1_extraction"
-    / "output"
-    / "batches"
-    / "20261101T053459830362Z_0e022780"
-    / "batch.json"
-)
 
 
 def _sha256(path: Path) -> str:
@@ -50,11 +42,11 @@ def _issue(
     )
 
 
-@unittest.skipUnless(BATCH_PATH.is_file(), f"real batch not found: {BATCH_PATH}")
 class RealLocationTestBase(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.batch = Project1Batch.load(BATCH_PATH)
+        cls.batch_path = real_batch_path()
+        cls.batch = Project1Batch.load(cls.batch_path)
         cls.word = next(d for d in cls.batch.documents if d.file_type == "word")
         cls.pdf = next(d for d in cls.batch.documents if d.file_type == "pdf")
         cls.word_table = next(
@@ -468,7 +460,7 @@ class RealLocationSummaryTests(RealLocationTestBase):
 
     def test_original_files_are_not_modified(self) -> None:
         paths = [
-            BATCH_PATH,
+            self.batch_path,
             Path(self.word.source_file),
             Path(self.pdf.source_file),
         ]

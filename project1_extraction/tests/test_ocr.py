@@ -191,12 +191,13 @@ def test_word_document_does_not_use_pdf_parser(
 
 def test_non_ascii_paddle_cache_path_is_overridden(
     monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
     from doc_extractor.core.paddle_structure import ensure_paddle_cache_dir
 
     monkeypatch.setenv(
         "PADDLE_PDX_CACHE_HOME",
-        r"C:\Users\测试用户\.paddlex",
+        str(tmp_path / "测试用户" / ".paddlex"),
     )
     resolved = ensure_paddle_cache_dir()
 

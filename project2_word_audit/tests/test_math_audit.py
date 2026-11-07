@@ -77,7 +77,7 @@ def _environmental_record(
         "category": "environmental_monitoring",
         "subcategory": "wastewater",
         "document_id": "doc-1",
-        "source_file": "D:\\sample\\report.docx",
+        "source_file": "sample/report.docx",
         "file_type": "word",
         "indicator": indicator,
         "value": value,
@@ -114,12 +114,12 @@ def _write_synthetic_batch(path: Path, records: list[dict]) -> None:
             {
                 "document_id": "doc-1",
                 "source_name": "report.docx",
-                "source_file": "D:\\sample\\report.docx",
+                "source_file": "sample/report.docx",
                 "file_type": "word",
                 "records": [
                     {
                         "document_id": "doc-1",
-                        "source_file": "D:\\sample\\report.docx",
+                        "source_file": "sample/report.docx",
                         "file_type": "word",
                         "content_type": "table",
                         "text": "项目\t监测结果\t单位\t备注",

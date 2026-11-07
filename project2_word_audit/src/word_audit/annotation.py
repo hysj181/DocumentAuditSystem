@@ -14,6 +14,7 @@ from word_audit.annotation_common import (
     is_synthetic_issue,
     unique_report_paths,
 )
+from word_audit.config import resolve_output_root
 from word_audit.models import (
     LOCATION_LOCATED,
     AnnotationResult,
@@ -266,10 +267,20 @@ def annotate_issues(
     issues: list[AuditIssue],
     locations: list[LocationResult],
     *,
-    output_dir: str | Path = "output/annotated",
-    report_dir: str | Path = "output/reports",
+    output_dir: str | Path | None = None,
+    report_dir: str | Path | None = None,
 ) -> AnnotationBatchResult:
-    """Apply annotations to copies and write JSON/Markdown reports."""
+    """Apply annotations to copies and write JSON/Markdown reports.
+
+    Defaults are resolved against the project output directory, not the
+    current working directory.
+    """
+
+    output_root = resolve_output_root()
+    if output_dir is None:
+        output_dir = output_root / "annotated"
+    if report_dir is None:
+        report_dir = output_root / "reports"
 
     issue_ids = [issue.issue_id for issue in issues]
     if len(issue_ids) != len(set(issue_ids)):

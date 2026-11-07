@@ -4,6 +4,7 @@ import contextlib
 import hashlib
 import io
 import json
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -12,18 +13,15 @@ import pymupdf
 from docx import Document
 from docx.shared import RGBColor
 
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from real_batch_support import real_batch_path
+
 from main import main as cli_main
 from word_audit.pipeline import PipelineInputError, run_audit
 from word_audit.project1_batch import Project1Batch
-
-REAL_BATCH_PATH = (
-    Path(__file__).resolve().parents[2]
-    / "project1_extraction"
-    / "output"
-    / "batches"
-    / "20261101T053459830362Z_0e022780"
-    / "batch.json"
-)
 
 REQUIRED_COUNT_KEYS = {
     "record_count",
@@ -271,15 +269,15 @@ def _make_synthetic_pdf_batch(root: Path) -> tuple[Path, Path, list[float]]:
     return batch_path, pdf_path, bbox
 
 
-@unittest.skipUnless(
-    REAL_BATCH_PATH.is_file(),
-    f"real batch not found: {REAL_BATCH_PATH}",
-)
 class RealBatchPipelineTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.batch_path = real_batch_path()
+
     def test_real_batch_completes_and_reports_unverified(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            result = run_audit(REAL_BATCH_PATH, root / "output")
+            result = run_audit(self.batch_path, root / "output")
             counts = result.report.metadata["pipeline"]["counts"]
             self.assertEqual(
                 counts,
@@ -320,14 +318,14 @@ class RealBatchPipelineTests(unittest.TestCase):
             )
 
     def test_real_batch_hashes_unchanged(self) -> None:
-        batch = Project1Batch.load(REAL_BATCH_PATH)
+        batch = Project1Batch.load(self.batch_path)
         paths = [
-            REAL_BATCH_PATH,
+            self.batch_path,
             *[Path(document.source_file) for document in batch.documents],
         ]
         before = {str(path): _sha256(path) for path in paths}
         with tempfile.TemporaryDirectory() as directory:
-            run_audit(REAL_BATCH_PATH, Path(directory) / "output")
+            run_audit(self.batch_path, Path(directory) / "output")
         after = {str(path): _sha256(path) for path in paths}
         self.assertEqual(before, after)
 
@@ -338,7 +336,7 @@ class RealBatchPipelineTests(unittest.TestCase):
                 [
                     "audit",
                     "--batch-json",
-                    str(REAL_BATCH_PATH),
+                    str(self.batch_path),
                     "--output-dir",
                     str(root / "output"),
                 ]
@@ -647,7 +645,7 @@ class SyntheticPdfPipelineTests(unittest.TestCase):
 
 class PipelineSyntheticIsolationTests(unittest.TestCase):
     def test_real_batch_is_not_marked_synthetic(self) -> None:
-        batch = Project1Batch.load(REAL_BATCH_PATH)
+        batch = Project1Batch.load(real_batch_path())
         self.assertFalse(batch.metadata.get("synthetic_data", False))
 
     def test_synthetic_marker_is_loaded_from_batch(self) -> None:

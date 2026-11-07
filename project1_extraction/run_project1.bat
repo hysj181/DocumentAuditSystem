@@ -6,12 +6,12 @@ set PADDLE_PDX_CACHE_HOME=%~dp0.paddlex_cache
 set PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK=True
 if not exist ".venv\Scripts\python.exe" goto noenv
 echo Starting Enterprise Environmental Data Extractor...
-".venv\Scripts\python.exe" -m doc_extractor
+uv run --no-sync python -m doc_extractor
 if errorlevel 1 goto failed
 goto end
 :noenv
 echo [ERROR] .venv\Scripts\python.exe not found.
-echo Please create .venv and install dependencies first.
+echo Please run "uv sync" in this project directory first.
 pause
 goto end
 :failed

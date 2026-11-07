@@ -4,17 +4,10 @@ import hashlib
 import unittest
 from pathlib import Path
 
+from real_batch_support import real_batch_path
+
 from word_audit.math_audit import validate_batch
 from word_audit.project1_batch import Project1Batch
-
-BATCH_PATH = (
-    Path(__file__).resolve().parents[2]
-    / "project1_extraction"
-    / "output"
-    / "batches"
-    / "20261101T053459830362Z_0e022780"
-    / "batch.json"
-)
 
 EXPECTED_INDICATORS = [
     "COD",
@@ -51,11 +44,11 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-@unittest.skipUnless(BATCH_PATH.is_file(), f"real batch not found: {BATCH_PATH}")
 class RealBatchValidationTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.batch = Project1Batch.load(BATCH_PATH)
+        cls.batch_path = real_batch_path()
+        cls.batch = Project1Batch.load(cls.batch_path)
         cls.result = validate_batch(cls.batch)
 
     def test_reads_real_indicators_values_units_and_raw_expressions(self) -> None:
@@ -132,15 +125,15 @@ class RealBatchValidationTests(unittest.TestCase):
         )
 
     def test_real_files_are_not_modified(self) -> None:
-        files = [BATCH_PATH]
+        files = [self.batch_path]
         for document in self.batch.documents:
             source = Path(document.source_file)
             if source.is_file():
                 files.append(source)
         before = {str(path): _sha256(path) for path in files}
 
-        Project1Batch.load(BATCH_PATH)
-        validate_batch(Project1Batch.load(BATCH_PATH))
+        Project1Batch.load(self.batch_path)
+        validate_batch(Project1Batch.load(self.batch_path))
 
         after = {str(path): _sha256(path) for path in files}
         self.assertEqual(before, after)

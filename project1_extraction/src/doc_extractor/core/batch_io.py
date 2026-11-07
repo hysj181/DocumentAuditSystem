@@ -1,28 +1,18 @@
 from __future__ import annotations
 
 import json
-import os
 import re
 from pathlib import Path
 from typing import Iterable
 
+from doc_extractor.config import DEFAULT_OUTPUT_ROOT
+from doc_extractor.config import OUTPUT_ROOT_ENV as OUTPUT_ENV_VAR
+from doc_extractor.config import resolve_output_root
 from doc_extractor.core.exporters import export_excel, export_json, export_markdown
 from doc_extractor.core.extraction_batch import ExtractionBatch
 
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
-DEFAULT_OUTPUT_ROOT = PROJECT_ROOT / "output"
-OUTPUT_ENV_VAR = "DOC_EXTRACTOR_OUTPUT_DIR"
 OUTPUT_SUBDIRS = ("json", "excel", "markdown", "batches")
 EXPORT_FORMATS = ("json", "excel", "markdown")
-
-
-def resolve_output_root(root: str | Path | None = None) -> Path:
-    if root is not None:
-        return Path(root).expanduser().resolve()
-    configured = os.environ.get(OUTPUT_ENV_VAR, "").strip()
-    if configured:
-        return Path(configured).expanduser().resolve()
-    return DEFAULT_OUTPUT_ROOT.resolve()
 
 
 def ensure_output_layout(root: str | Path | None = None) -> dict[str, Path]:

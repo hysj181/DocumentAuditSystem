@@ -19,10 +19,16 @@ WORKSPACE_ROOT = PROJECT3_ROOT.parent
 DEFAULT_PROJECT1_ROOT = WORKSPACE_ROOT / "project1_extraction"
 DEFAULT_PROJECT2_ROOT = WORKSPACE_ROOT / "project2_word_audit"
 
+DEFAULT_OUTPUT_ROOT = PROJECT3_ROOT / "output"
+DEFAULT_CACHE_DIR = PROJECT3_ROOT / ".cache"
+DEFAULT_TEMP_DIR = PROJECT3_ROOT / ".tmp"
+
 PROJECT1_ROOT_ENV = "PROJECT1_ROOT"
 PROJECT1_PYTHON_ENV = "PROJECT1_PYTHON"
 PROJECT2_ROOT_ENV = "PROJECT2_ROOT"
 PROJECT2_PYTHON_ENV = "PROJECT2_PYTHON"
+OUTPUT_ROOT_ENV = "PROJECT3_OUTPUT_ROOT"
+TEMP_DIR_ENV = "PROJECT3_TEMP_DIR"
 
 
 def default_python_path(project_root: Path) -> Path:
@@ -55,6 +61,31 @@ def _choose_path(
     if selected is None:
         selected = default
     return selected.expanduser()
+
+
+def _resolve_directory(
+    value: str | Path | None,
+    environment_name: str,
+    default: Path,
+) -> Path:
+    if value is not None:
+        return Path(value).expanduser().resolve()
+    configured = _environment_path(environment_name)
+    if configured is not None:
+        return configured.resolve()
+    return default.resolve()
+
+
+def resolve_output_root(value: str | Path | None = None) -> Path:
+    """Return the task output root: explicit path, environment, then default."""
+
+    return _resolve_directory(value, OUTPUT_ROOT_ENV, DEFAULT_OUTPUT_ROOT)
+
+
+def resolve_temp_dir(value: str | Path | None = None) -> Path:
+    """Return the temporary directory: explicit path, environment, then default."""
+
+    return _resolve_directory(value, TEMP_DIR_ENV, DEFAULT_TEMP_DIR)
 
 
 @dataclass(frozen=True)

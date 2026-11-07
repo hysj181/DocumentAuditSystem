@@ -28,7 +28,7 @@ from word_audit.models import (
 def word_table_location() -> SourceLocation:
     return SourceLocation(
         document_id="19353a83da7e47c1b236f87ff7036c71",
-        source_file="D:\\sample\\01_企业废水监测报告.docx",
+        source_file="sample/01_企业废水监测报告.docx",
         source_name="01_企业废水监测报告.docx",
         file_type="word",
         table_index=0,
@@ -55,7 +55,7 @@ class SourceLocationTests(unittest.TestCase):
     def test_paragraph_anchor_is_word_anchor(self) -> None:
         location = SourceLocation(
             document_id="doc-1",
-            source_file="D:\\sample\\report.docx",
+            source_file="sample/report.docx",
             file_type="word",
             paragraph_index=3,
             source_content_type="paragraph",
@@ -70,7 +70,7 @@ class SourceLocationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             SourceLocation(
                 document_id="doc-1",
-                source_file="D:\\sample\\report.docx",
+                source_file="sample/report.docx",
                 paragraph_index=0,
                 locator_method=LOCATOR_EXACT_INDEX,
                 locator_confidence=1.5,
@@ -80,7 +80,7 @@ class SourceLocationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             SourceLocation(
                 document_id="doc-1",
-                source_file="D:\\sample\\report.docx",
+                source_file="sample/report.docx",
                 paragraph_index=3.5,
                 locator_method=LOCATOR_EXACT_INDEX,
                 locator_confidence=0.9,
@@ -90,7 +90,7 @@ class SourceLocationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             SourceLocation(
                 document_id="doc-1",
-                source_file="D:\\sample\\report.docx",
+                source_file="sample/report.docx",
                 locator_method=LOCATOR_EXACT_INDEX,
                 locator_confidence=0.9,
             )
@@ -98,7 +98,7 @@ class SourceLocationTests(unittest.TestCase):
     def test_unknown_location_is_allowed(self) -> None:
         location = SourceLocation(
             document_id="doc-1",
-            source_file="D:\\sample\\report.docx",
+            source_file="sample/report.docx",
         )
         self.assertEqual(location.locator_method, LOCATOR_UNKNOWN)
         self.assertEqual(location.locator_confidence, 0.0)
@@ -106,7 +106,7 @@ class SourceLocationTests(unittest.TestCase):
 
     def test_missing_document_identity_is_rejected(self) -> None:
         with self.assertRaises(ValueError):
-            SourceLocation(document_id="", source_file="D:\\sample\\report.docx")
+            SourceLocation(document_id="", source_file="sample/report.docx")
 
 
 class CalculationInfoTests(unittest.TestCase):
@@ -367,7 +367,7 @@ class AuditReportTests(unittest.TestCase):
                 {
                     "document_id": "19353a83da7e47c1b236f87ff7036c71",
                     "source_name": "01_企业废水监测报告.docx",
-                    "source_file": "D:\\sample\\01_企业废水监测报告.docx",
+                    "source_file": "sample/01_企业废水监测报告.docx",
                     "file_type": "word",
                 }
             ],
@@ -450,7 +450,7 @@ class ProjectOneShapeTests(unittest.TestCase):
         location = SourceLocation.from_dict(
             {
                 "document_id": "19353a83da7e47c1b236f87ff7036c71",
-                "source_file": "D:\\DocumentAuditSystem\\project1_extraction\\test_data\\01_企业废水监测报告.docx",
+                "source_file": "project1_extraction/test_data/01_企业废水监测报告.docx",
                 "file_type": "word",
                 "paragraph_index": None,
                 "table_index": 0,

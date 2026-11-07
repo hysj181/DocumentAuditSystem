@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 from word_audit import __version__
+from word_audit.config import resolve_output_root
 from word_audit.math_audit import save_validation_result, validate_batch
 from word_audit.pipeline import PipelineInputError, run_audit
 from word_audit.project1_batch import Project1Batch
@@ -65,10 +66,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     audit_parser.add_argument(
         "--output-dir",
-        default="output",
+        default=None,
         help=(
             "Output root directory. Reports go to <output-dir>/reports and "
-            "annotated files to <output-dir>/annotated. Default: output."
+            "annotated files to <output-dir>/annotated. Default: the "
+            "project's output directory."
         ),
     )
     return parser
@@ -138,7 +140,9 @@ def run_validate_batch(args: argparse.Namespace) -> int:
     output = (
         Path(args.output)
         if args.output
-        else Path("output") / "reports" / f"{batch.batch_id}_math_validation.json"
+        else resolve_output_root()
+        / "reports"
+        / f"{batch.batch_id}_math_validation.json"
     )
     saved = save_validation_result(result, output)
     summary = result.summary()

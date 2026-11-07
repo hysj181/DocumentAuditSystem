@@ -2,7 +2,7 @@
 
 - 系统交付基线：**V1.0.0**
 - 基线日期：2026-11-01
-- 项目根目录：`D:\DocumentAuditSystem`
+- 项目根目录：Git 仓库根目录（下文以 `<仓库根目录>` 表示）
 - 运行形态：命令行（CLI）系统，不含 GUI 或 Web 界面
 
 > V1.0.0 是系统交付基线标识，不等于三个 Python 包的版本号。三个子项目仍分别使用各自 `pyproject.toml` 中的版本：
@@ -138,83 +138,85 @@ paddle.device.get_device() = cpu
 ## 7. 项目目录结构
 
 ```text
-D:\DocumentAuditSystem\
+<仓库根目录>/
 ├── README.md                         # 本文件
-├── docs\
+├── docs/
 │   ├── 版本与环境清单.md
 │   ├── 测试与验收总报告.md
 │   ├── 已知问题与限制.md
 │   └── 版本冻结与文档同步报告.md
-├── project1_extraction\              # Word/PDF 提取
-│   ├── src\doc_extractor\
-│   ├── tests\
-│   ├── test_data\
-│   ├── docs\
+├── project1_extraction/              # Word/PDF 提取
+│   ├── src/doc_extractor/
+│   ├── tests/
+│   ├── test_data/
+│   ├── docs/
 │   ├── main.py
 │   └── README.md
-├── project2_word_audit\              # 数学审核、错别字、定位、批注
-│   ├── src\word_audit\
-│   ├── tests\
-│   ├── test_data\
-│   ├── docs\
+├── project2_word_audit/              # 数学审核、错别字、定位、批注
+│   ├── src/word_audit/
+│   ├── tests/
+│   ├── test_data/
+│   ├── docs/
 │   ├── main.py
 │   └── README.md
-├── project3_cli_workflow\            # 统一 CLI 编排和交付
-│   ├── src\project3_cli_workflow\
-│   ├── tests\
-│   ├── docs\
-│   └── README.md
-└── acceptance_mixed_20261101_184923\ # 混合验收目录（不属于版本冻结内容）
+└── project3_cli_workflow/            # 统一 CLI 编排和交付
+    ├── src/project3_cli_workflow/
+    ├── tests/
+    ├── docs/
+    └── README.md
 ```
 
 ## 8. 安装和运行方式
 
 ### 8.1 准备三个虚拟环境
 
-项目一、项目二、项目三分别创建并安装依赖：
+三个项目统一使用 uv。分别在各自项目根目录执行：
 
 ```powershell
-cd D:\DocumentAuditSystem\project1_extraction
-py -3.12 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-.\.venv\Scripts\python.exe -m pip install -e .
+cd <仓库根目录>/project1_extraction
+uv sync
+uv sync --extra dev    # 开发/测试时安装 pytest
 
-cd D:\DocumentAuditSystem\project2_word_audit
+cd <仓库根目录>/project2_word_audit
 uv sync
 
-cd D:\DocumentAuditSystem\project3_cli_workflow
+cd <仓库根目录>/project3_cli_workflow
 uv sync
 ```
+
+项目一保留 `requirements.txt` 作为兼容文件，但不再是主要安装方式。
 
 项目三默认使用同级目录下项目一、项目二的 `.venv`。如路径不同，可通过 `--project1-root`、`--project1-python`、`--project2-root`、`--project2-python` 指定。
 
 ### 8.2 运行完整工作流
 
 ```powershell
-cd D:\DocumentAuditSystem\project3_cli_workflow
+cd <仓库根目录>/project3_cli_workflow
 uv run project3 run `
-  "D:\DocumentAuditSystem\project1_extraction\test_data\01_企业废水监测报告.docx" `
-  "D:\DocumentAuditSystem\project1_extraction\test_data\02_企业废气监测报告.pdf" `
-  --output-root "D:\AuditOutput"
+  "../project1_extraction/test_data/01_企业废水监测报告.docx" `
+  "../project1_extraction/test_data/02_企业废气监测报告.pdf" `
+  --output-root "<输出根目录>"
 ```
 
 文件夹输入：
 
 ```powershell
-uv run project3 run "D:\待审核资料" --output-root "D:\AuditOutput"
-uv run project3 run "D:\待审核资料" --recursive --output-root "D:\AuditOutput"
+uv run project3 run "<待审核目录>" --output-root "<输出根目录>"
+uv run project3 run "<待审核目录>" --recursive --output-root "<输出根目录>"
 ```
 
 ### 8.3 断点恢复
 
 ```powershell
-uv run project3 resume <job_id> --output-root "D:\AuditOutput"
+uv run project3 resume <job_id> --output-root "<输出根目录>"
 ```
+
+省略 `--output-root` 时，`resume` 使用项目三根目录下的 `output/`，不再依赖当前工作目录。
 
 ### 8.4 重新生成交付
 
 ```powershell
-uv run project3 deliver --manifest "D:\AuditOutput\<job_id>\manifest.json"
+uv run project3 deliver --manifest "<输出根目录>/<job_id>/manifest.json"
 ```
 
 ### 8.5 查看帮助
@@ -234,16 +236,16 @@ uv run project3 deliver --help
 2. 执行：
 
 ```powershell
-cd D:\DocumentAuditSystem\project3_cli_workflow
+cd <仓库根目录>/project3_cli_workflow
 uv run project3 run `
-  "D:\待审核资料\企业废水监测报告.docx" `
-  "D:\待审核资料\企业废气监测报告.pdf" `
-  --output-root "D:\AuditOutput"
+  "<待审核目录>/企业废水监测报告.docx" `
+  "<待审核目录>/企业废气监测报告.pdf" `
+  --output-root "<输出根目录>"
 ```
 
 3. 命令退出码为 `0` 表示成功；为 `3` 表示部分完成或存在人工核实/缺失交付项；为 `4` 表示外部阶段失败；为 `5` 表示内部错误或锁冲突。
-4. 打开 `D:\AuditOutput\<job_id>\03_delivery\运行摘要.md` 和 `审核报告.md` 查看结果。
-5. 如存在可批注问题，批注副本位于 `03_delivery\批注文件\`。
+4. 打开 `<输出根目录>/<job_id>/03_delivery/运行摘要.md` 和 `审核报告.md` 查看结果。
+5. 如存在可批注问题，批注副本位于 `03_delivery/批注文件/`。
 
 验收实测（2026-11-01）：5 个 Word/PDF 文档全部提取成功，2 个 PDF 均成功解析；21 条环境数据与标准答案 21/21 匹配；正式样本未发现问题，因此正式交付没有批注文件。补充错别字样本成功定位并生成批注副本。
 

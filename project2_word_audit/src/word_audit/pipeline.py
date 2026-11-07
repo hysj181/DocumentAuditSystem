@@ -23,6 +23,7 @@ from typing import Any
 
 from word_audit.annotation import AnnotationBatchResult, annotate_issues
 from word_audit.annotation_common import unique_path, unique_report_paths
+from word_audit.config import resolve_output_root
 from word_audit.location import locate_issues, summarize_location_results
 from word_audit.math_audit import (
     MathValidationResult,
@@ -495,9 +496,13 @@ def _write_pipeline_markdown(
 
 def run_audit(
     batch_json: str | Path,
-    output_dir: str | Path = "output",
+    output_dir: str | Path | None = None,
 ) -> AuditPipelineResult:
-    """Run the complete audit flow for one project one batch JSON."""
+    """Run the complete audit flow for one project one batch JSON.
+
+    ``output_dir`` defaults to the project ``output`` directory, not the
+    current working directory.
+    """
 
     started_at = utc_now_iso()
     started_monotonic = time.monotonic()
@@ -517,7 +522,7 @@ def run_audit(
             )
 
     locations = locate_issues(batch, issues)
-    output_root = Path(output_dir).expanduser()
+    output_root = resolve_output_root(output_dir)
     annotated_dir = output_root / "annotated"
     report_dir = output_root / "reports"
 
