@@ -17,7 +17,7 @@
 审核报告 AuditReport
       |
       v
-批注结果 AnnotationResult（下一阶段写回 Word）
+批注结果 AnnotationResult（写入 Word 原生批注或 PDF 标记）
 ```
 
 设计原则：
@@ -227,23 +227,35 @@ other              其他
 
 - `anchor.document_id` 必须等于 `document_id`；
 - `status = "applied"` 时自动补 `applied_at`；
-- 本阶段只定义结构，**不修改 Word，不写批注**。
+- Word 结果记录原生批注的 `comment_id`、`anchor_text`、`occurrence_index`、`position`；PDF 结果记录红色矩形位置。
 
-`word_anchor` 预留记录实际落点，例如：
+`word_anchor` 记录实际落点，例如：
 
 ```json
 {
+  "insertion": "native_comment",
   "paragraph_index": 3,
   "table_index": null,
   "row_index": null,
   "column_index": null,
-  "matched_text": "COD 85 mg/L",
-  "match_start": 0,
-  "match_end": 10
+  "cell_paragraph_index": 0,
+  "table_cells": [],
+  "anchor_text": "85",
+  "occurrence_index": 0,
+  "anchor_strategy": "math_reported_value",
+  "comment_id": 0,
+  "position": {
+    "kind": "body",
+    "body_paragraph_index": 3,
+    "table_cells": [],
+    "cell_paragraph_index": 0,
+    "document_order": 3,
+    "text": "COD 85 mg/L"
+  }
 }
 ```
 
-字符偏移只有在下一阶段实际匹配成功后才写入，不能提前编造。
+这些字段只能由实际定位和批注结果写入，不能提前编造。
 
 ## 6. AuditReport：审核报告
 
@@ -297,7 +309,7 @@ source, issues[], metadata
 
 详细 JSON 格式见 `docs/error_list_format.md`。
 
-`ErrorList.to_report(...)` 可将错误清单转为 `AuditReport`，批注结果在下一阶段追加。
+`ErrorList.to_report(...)` 可将错误清单转为 `AuditReport`，批注结果由 `annotate_issues()` 生成。
 
 ## 8. 与项目一字段的对应关系
 
@@ -320,14 +332,14 @@ source, issues[], metadata
 
 | 项目一限制 | 项目二设计应对 |
 | --- | --- |
-| Word 无页码/坐标 | `SourceLocation.page_number/bbox` 允许 `None`，Word 批注只依赖段落/表格索引 |
+| Word 无页码/坐标 | `SourceLocation.page_number/bbox` 允许 `None`，Word 原生批注依赖 `ParagraphPosition` 和精确字符文本锚点 |
 | Word 表格不在 `tables[]` | 读取时从 `records[].metadata.rows` 取表格，不使用 `document.table_count` |
 | Word 表格无表头字段 | 表头推断结果写入 `location.notes`，并降低定位置信度 |
 | 环境记录列索引指向指标单元格 | 增加 `value_row_index/value_column_index`，仅在验证后填写 |
 | 单位被规范化 | `CalculationInfo.unit` 记录审计使用的单位，`original_text` 保留原文 |
 | 环境记录无可靠计算值 | `computed_value` 默认 `None`，验证后才写 |
 | 绝对路径可能失效 | 使用前校验 `source_file` 存在 |
-| 无字符级偏移 | `SourceLocation` 只到单元格；字符偏移只放在批注阶段的 `word_anchor` |
+| 字符级锚点 | Word 原生批注使用 `anchor_text` + `occurrence_index` 精确锚定；不再使用整段/整格文本 |
 
 ## 10. 序列化与版本
 

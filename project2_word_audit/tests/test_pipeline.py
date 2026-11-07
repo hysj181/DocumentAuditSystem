@@ -7,21 +7,143 @@ import json
 import sys
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
+from xml.etree import ElementTree
 
 import pymupdf
 from docx import Document
-from docx.shared import RGBColor
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from real_batch_support import real_batch_path
-
 from main import main as cli_main
+from real_batch_support import real_batch_path
 from word_audit.pipeline import PipelineInputError, run_audit
 from word_audit.project1_batch import Project1Batch
+
+W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+
+
+def _zip_read(path: Path, name: str) -> bytes:
+    with zipfile.ZipFile(path) as archive:
+        return archive.read(name)
+
+
+def _comments(path: Path) -> list[ElementTree.Element]:
+    root = ElementTree.fromstring(_zip_read(path, "word/comments.xml"))
+    return list(root.findall(f"{W}comment"))
+
+
+def _comment_by_id(path: Path, comment_id: int) -> ElementTree.Element:
+    identifier = str(comment_id)
+    matches = [
+        comment
+        for comment in _comments(path)
+        if comment.get(f"{W}id") == identifier
+    ]
+    assert len(matches) == 1
+    return matches[0]
+
+
+def _comment_paragraph_text(paragraph: ElementTree.Element) -> str:
+    parts: list[str] = []
+    for element in paragraph.iter():
+        if element.tag == f"{W}t":
+            parts.append(element.text or "")
+        elif element.tag == f"{W}tab":
+            parts.append("\t")
+        elif element.tag == f"{W}br":
+            parts.append("\n")
+    return "".join(parts)
+
+
+def _comment_text(comment: ElementTree.Element) -> str:
+    return "\n".join(
+        _comment_paragraph_text(paragraph)
+        for paragraph in comment.findall(f"{W}p")
+    )
+
+
+def _marker_counts(path: Path, comment_id: int) -> tuple[int, int, int]:
+    root = ElementTree.fromstring(_zip_read(path, "word/document.xml"))
+    identifier = str(comment_id)
+    starts = [
+        element
+        for element in root.iter(f"{W}commentRangeStart")
+        if element.get(f"{W}id") == identifier
+    ]
+    ends = [
+        element
+        for element in root.iter(f"{W}commentRangeEnd")
+        if element.get(f"{W}id") == identifier
+    ]
+    references = [
+        element
+        for element in root.iter(f"{W}commentReference")
+        if element.get(f"{W}id") == identifier
+    ]
+    return len(starts), len(ends), len(references)
+
+
+def _comment_range_text(path: Path, comment_id: int) -> str:
+    root = ElementTree.fromstring(_zip_read(path, "word/document.xml"))
+    identifier = str(comment_id)
+    inside = False
+    parts: list[str] = []
+    for element in root.iter():
+        if (
+            element.tag == f"{W}commentRangeStart"
+            and element.get(f"{W}id") == identifier
+        ):
+            inside = True
+            continue
+        if (
+            element.tag == f"{W}commentRangeEnd"
+            and element.get(f"{W}id") == identifier
+        ):
+            inside = False
+            continue
+        if inside and element.tag == f"{W}t":
+            parts.append(element.text or "")
+    return "".join(parts)
+
+
+def _assert_native_comment_annotation(
+    output_path: Path,
+    annotation,
+) -> None:
+    comment_id = annotation.metadata.get("comment_id")
+    assert comment_id is not None
+    anchor_text = annotation.word_anchor.get("anchor_text") if annotation.word_anchor else None
+    assert anchor_text
+    comment = _comment_by_id(output_path, comment_id)
+    assert _comment_text(comment) == annotation.comment_text
+    assert comment.get(f"{W}author") == "DocumentAuditSystem"
+    assert comment.get(f"{W}initials") == "DAS"
+    assert _marker_counts(output_path, comment_id) == (1, 1, 1)
+    assert _comment_range_text(output_path, comment_id) == anchor_text
+
+
+def _table_text_snapshot(tables) -> list:
+    snapshot = []
+    for table in tables:
+        rows = []
+        for row in table.rows:
+            rows.append(
+                [
+                    {
+                        "paragraphs": [
+                            paragraph.text for paragraph in cell.paragraphs
+                        ],
+                        "tables": _table_text_snapshot(cell.tables),
+                    }
+                    for cell in row.cells
+                ]
+            )
+        snapshot.append(rows)
+    return snapshot
 
 REQUIRED_COUNT_KEYS = {
     "record_count",
@@ -528,29 +650,39 @@ class SyntheticWordPipelineTests(unittest.TestCase):
             self.assertTrue(annotated_path.name.endswith("_annotated.docx"))
 
             annotated = Document(str(annotated_path))
-            annotations = [
-                paragraph
-                for paragraph in annotated.paragraphs
-                if paragraph.text.startswith("#")
-            ]
-            cell = annotated.tables[0].rows[1].cells[1]
-            cell_annotations = [
-                paragraph
-                for paragraph in cell.paragraphs
-                if paragraph.text.startswith("#")
-            ]
-            self.assertEqual(len(annotations), 0)
-            self.assertEqual(len(cell_annotations), 1)
-            annotation = cell_annotations[0]
-            self.assertIn("[合成测试数据]", annotation.text)
-            self.assertIn("经计算为 15 %", annotation.text)
-            self.assertIn("原文：", annotation.text)
-            for run in annotation.runs:
-                self.assertEqual(run.font.color.rgb, RGBColor(0xFF, 0x00, 0x00))
-
+            self.assertEqual(
+                [paragraph.text for paragraph in annotated.paragraphs],
+                ["合成测试数据，非真实审核结果"],
+            )
+            self.assertFalse(
+                any(
+                    paragraph.text.startswith("#")
+                    for paragraph in annotated.paragraphs
+                )
+            )
             self.assertEqual(len(annotated.tables), 1)
             self.assertEqual(len(annotated.tables[0].rows), 2)
             self.assertEqual(len(annotated.tables[0].columns), 4)
+            original = Document(str(docx_path))
+            self.assertEqual(
+                _table_text_snapshot(annotated.tables),
+                _table_text_snapshot(original.tables),
+            )
+
+            native_annotations = [
+                item
+                for item in result.report.annotations
+                if item.metadata.get("annotation_kind") == "word_native_comment"
+            ]
+            self.assertEqual(len(native_annotations), 1)
+            native = native_annotations[0]
+            self.assertEqual(native.status, "applied")
+            self.assertEqual(native.metadata["anchor_text"], "12.5")
+            self.assertEqual(len(_comments(annotated_path)), 1)
+            _assert_native_comment_annotation(annotated_path, native)
+            self.assertIn("经计算为 15 %", native.comment_text)
+            self.assertEqual(_comment_range_text(annotated_path, native.metadata["comment_id"]), "12.5")
+
             self.assertEqual(_sha256(docx_path), source_hash)
 
             payload = json.loads(result.audit_json_path.read_text(encoding="utf-8"))

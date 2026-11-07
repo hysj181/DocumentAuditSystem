@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}文档智能审核系统{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="shell header-inner">
+      <a class="brand" href="/">
+        <span class="brand-mark">DA</span>
+        <span>
+          <strong>文档智能审核系统</strong>
+          <small>DocumentAuditSystem V2.0</small>
+        </span>
+      </a>
+      <nav class="nav">
+        <a href="/">首页</a>
+        <a href="/upload">上传文档</a>
+        <a href="/tasks">审核任务</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="shell">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="site-footer">
+    <div class="shell">
+      <span>环境监测文档审核 · 数学校验 · 错别字检查 · 原生批注</span>
+      <span>原始文件只读，标注写入独立副本</span>
+    </div>
+  </footer>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

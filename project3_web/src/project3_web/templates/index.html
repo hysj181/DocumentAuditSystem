@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}文档智能审核系统{% endblock %}
+{% block content %}
+<section class="hero">
+  <div>
+    <p class="eyebrow">环境数据审核工作台</p>
+    <h1>上传 Word / PDF，获得可追溯的审核报告与标注副本</h1>
+    <p class="lead">
+      系统会调用项目一提取文档内容，再调用项目二执行数学校验、错别字检查、问题定位和批注。
+      Word 使用 OOXML 原生批注，PDF 使用红色矩形标记；原始文件不会被修改。
+    </p>
+    <div class="actions">
+      <a class="button primary" href="/upload">开始上传审核</a>
+      <a class="button" href="/tasks">查看历史任务</a>
+    </div>
+  </div>
+  <aside class="hero-panel">
+    <h2>审核能力</h2>
+    <ul class="check-list">
+      <li>数学表达式与报告值一致性校验</li>
+      <li>高置信度错别字自动批注</li>
+      <li>Word 原生批注与 PDF 红框标注</li>
+      <li>JSON / Markdown 双报告</li>
+      <li>任务级文件隔离与安全下载</li>
+    </ul>
+  </aside>
+</section>
+
+<section class="section">
+  <div class="section-heading">
+    <div>
+      <p class="eyebrow">最近任务</p>
+      <h2>审核记录</h2>
+    </div>
+    <a href="/tasks">全部任务</a>
+  </div>
+  {% if tasks %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>任务编号</th>
+          <th>创建时间</th>
+          <th>状态</th>
+          <th>文件数</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for task in tasks %}
+        <tr>
+          <td class="mono">{{ task.task_id }}</td>
+          <td>{{ task.created_at }}</td>
+          <td><span class="status status-{{ task.status }}">{{ status_labels.get(task.status, task.status) }}</span></td>
+          <td>{{ task.uploads|length }}</td>
+          <td class="right"><a href="/tasks/{{ task.task_id }}">查看详情</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty">还没有审核任务。上传文档后，任务和报告会保存在本地任务目录中。</div>
+  {% endif %}
+</section>
+{% endblock %}

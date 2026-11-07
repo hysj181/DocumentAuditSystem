@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}上传文档 · 文档智能审核系统{% endblock %}
+{% block content %}
+<section class="section narrow">
+  <p class="eyebrow">新建审核任务</p>
+  <h1>上传待审核文档</h1>
+  <p class="lead">
+    支持一次上传多个文件，仅接受 <code>.docx</code> 和 <code>.pdf</code>。每个文件会保存在独立任务目录中，
+    不会覆盖之前上传的文件。
+  </p>
+
+  {% if error %}
+  <div class="alert error">{{ error }}</div>
+  {% endif %}
+
+  <form class="card form-card" action="/upload" method="post" enctype="multipart/form-data">
+    <label class="drop-zone" for="files">
+      <strong>选择或拖入多个文档</strong>
+      <span>Word (.docx) 或 PDF (.pdf)，单文件不超过 50 MB</span>
+      <input id="files" name="files" type="file" accept=".docx,.pdf" multiple required>
+    </label>
+    <div id="file-list" class="file-list"></div>
+    <button class="button primary" type="submit">上传并开始审核</button>
+  </form>
+
+  <div class="notice">
+    <strong>说明：</strong>审核需要调用项目一提取和项目二审核流程。Word 原生批注在输出副本中生成，
+    原始上传文件保持只读。
+  </div>
+</section>
+{% endblock %}
+{% block scripts %}
+<script>
+  const input = document.getElementById("files");
+  const list = document.getElementById("file-list");
+  input.addEventListener("change", () => {
+    list.innerHTML = "";
+    for (const file of input.files) {
+      const row = document.createElement("div");
+      row.className = "file-row";
+      row.textContent = `${file.name} · ${(file.size / 1024).toFixed(1)} KB`;
+      list.appendChild(row);
+    }
+  });
+</script>
+{% endblock %}

@@ -4,14 +4,18 @@ import hashlib
 import json
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
+from unittest import mock
+from xml.etree import ElementTree
 
 import pymupdf
 from docx import Document
-from docx.shared import RGBColor
+from docx.document import Document as DocumentClass
 from real_batch_support import real_batch_path
-
+from word_audit import word_annotator
 from word_audit.annotation import annotate_issues
+from word_audit.annotation_common import build_comment_text
 from word_audit.location import locate_issue, locate_issues
 from word_audit.math_audit import validate_batch
 from word_audit.models import (
@@ -25,7 +29,7 @@ from word_audit.models import (
 )
 from word_audit.project1_batch import Project1Batch
 
-RED = RGBColor(0xFF, 0x00, 0x00)
+W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 
 
 def _sha256(path: Path) -> str:
@@ -34,6 +38,126 @@ def _sha256(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def _zip_read(path: Path, name: str) -> bytes:
+    with zipfile.ZipFile(path) as archive:
+        return archive.read(name)
+
+
+def _comments(path: Path) -> list[ElementTree.Element]:
+    root = ElementTree.fromstring(_zip_read(path, "word/comments.xml"))
+    return list(root.findall(f"{W}comment"))
+
+
+def _comment_by_id(path: Path, comment_id: int) -> ElementTree.Element:
+    identifier = str(comment_id)
+    matches = [
+        comment
+        for comment in _comments(path)
+        if comment.get(f"{W}id") == identifier
+    ]
+    assert len(matches) == 1
+    return matches[0]
+
+
+def _comment_paragraph_text(paragraph: ElementTree.Element) -> str:
+    parts: list[str] = []
+    for element in paragraph.iter():
+        if element.tag == f"{W}t":
+            parts.append(element.text or "")
+        elif element.tag == f"{W}tab":
+            parts.append("\t")
+        elif element.tag == f"{W}br":
+            parts.append("\n")
+    return "".join(parts)
+
+
+def _comment_text(comment: ElementTree.Element) -> str:
+    paragraphs = comment.findall(f"{W}p")
+    return "\n".join(
+        _comment_paragraph_text(paragraph) for paragraph in paragraphs
+    )
+
+
+def _marker_counts(path: Path, comment_id: int) -> tuple[int, int, int]:
+    root = ElementTree.fromstring(_zip_read(path, "word/document.xml"))
+    identifier = str(comment_id)
+    starts = [
+        element
+        for element in root.iter(f"{W}commentRangeStart")
+        if element.get(f"{W}id") == identifier
+    ]
+    ends = [
+        element
+        for element in root.iter(f"{W}commentRangeEnd")
+        if element.get(f"{W}id") == identifier
+    ]
+    references = [
+        element
+        for element in root.iter(f"{W}commentReference")
+        if element.get(f"{W}id") == identifier
+    ]
+    return len(starts), len(ends), len(references)
+
+
+def _comment_range_text(path: Path, comment_id: int) -> str:
+    root = ElementTree.fromstring(_zip_read(path, "word/document.xml"))
+    identifier = str(comment_id)
+    inside = False
+    parts: list[str] = []
+    for element in root.iter():
+        if (
+            element.tag == f"{W}commentRangeStart"
+            and element.get(f"{W}id") == identifier
+        ):
+            inside = True
+            continue
+        if (
+            element.tag == f"{W}commentRangeEnd"
+            and element.get(f"{W}id") == identifier
+        ):
+            inside = False
+            continue
+        if inside and element.tag == f"{W}t":
+            parts.append(element.text or "")
+    return "".join(parts)
+
+
+def _assert_native_comment_annotation(
+    output_path: Path,
+    annotation,
+) -> None:
+    comment_id = annotation.metadata.get("comment_id")
+    assert comment_id is not None
+    anchor_text = annotation.word_anchor.get("anchor_text") if annotation.word_anchor else None
+    assert anchor_text
+    comment = _comment_by_id(output_path, comment_id)
+    assert _comment_text(comment) == annotation.comment_text
+    assert comment.get(f"{W}author") == "DocumentAuditSystem"
+    assert comment.get(f"{W}initials") == "DAS"
+    assert _marker_counts(output_path, comment_id) == (1, 1, 1)
+    assert _comment_range_text(output_path, comment_id) == anchor_text
+
+
+def _table_text_snapshot(tables) -> list:
+    snapshot = []
+    for table in tables:
+        rows = []
+        for row in table.rows:
+            rows.append(
+                [
+                    {
+                        "paragraphs": [
+                            paragraph.text for paragraph in cell.paragraphs
+                        ],
+                        "tables": _table_text_snapshot(cell.tables),
+                    }
+                    for cell in row.cells
+                ]
+            )
+        snapshot.append(rows)
+    return snapshot
 
 
 def _synthetic_issue(
@@ -47,7 +171,7 @@ def _synthetic_issue(
 ) -> AuditIssue:
     return AuditIssue(
         issue_id=issue_id,
-        issue_type="calculation_error" if calculation else "value_mismatch",
+        issue_type="calculation_error" if calculation else "other",
         description=f"合成测试：{description}",
         original_text=original_text,
         location=location,
@@ -101,7 +225,14 @@ class AnnotationTestBase(unittest.TestCase):
             locator_confidence=0.95,
         )
 
-    def word_cell_location(self, row: int, column: int) -> SourceLocation:
+    def word_cell_location(
+        self,
+        row: int,
+        column: int,
+        *,
+        value_row: int | None = None,
+        value_column: int | None = None,
+    ) -> SourceLocation:
         return SourceLocation(
             document_id=self.word.document_id,
             source_file=self.word.source_file,
@@ -110,6 +241,8 @@ class AnnotationTestBase(unittest.TestCase):
             table_index=0,
             row_index=row,
             column_index=column,
+            value_row_index=value_row,
+            value_column_index=value_column,
             source_content_type="table",
             locator_method="table_cell",
             locator_confidence=0.95,
@@ -123,12 +256,13 @@ class AnnotationTestBase(unittest.TestCase):
         description: str = "Word 段落批注",
         suggestion: str = "合成测试建议：仅验证批注写入，不代表真实审核结论。",
         calculation: CalculationInfo | None = None,
+        original_text: str | None = None,
     ) -> AuditIssue:
         record = self.paragraph_record(index)
         return _synthetic_issue(
             issue_id,
             description,
-            record.text,
+            original_text if original_text is not None else record.text,
             self.word_paragraph_location(index),
             suggestion=suggestion,
             calculation=calculation,
@@ -181,37 +315,24 @@ class AnnotationTestBase(unittest.TestCase):
     def located(self, issues: list[AuditIssue]) -> list[LocationResult]:
         return locate_issues(self.batch, issues)
 
-    def assert_red_paragraph(self, paragraph) -> None:
-        self.assertTrue(paragraph.text.startswith("#"))
-        self.assertTrue(paragraph.runs)
-        for run in paragraph.runs:
-            self.assertEqual(run.font.color.rgb, RED)
-
     def assert_original_word_preserved(self, annotated_path: Path) -> None:
         original = Document(self.word.source_file)
         annotated = Document(str(annotated_path))
 
-        original_texts = [paragraph.text for paragraph in original.paragraphs]
-        annotated_texts = [paragraph.text for paragraph in annotated.paragraphs]
-        cursor = 0
-        for text in annotated_texts:
-            if cursor < len(original_texts) and text == original_texts[cursor]:
-                cursor += 1
-        self.assertEqual(cursor, len(original_texts))
-
-        self.assertEqual(len(annotated.tables), len(original.tables))
-        for original_table, annotated_table in zip(original.tables, annotated.tables):
-            self.assertEqual(len(annotated_table.rows), len(original_table.rows))
-            self.assertEqual(
-                len(annotated_table.columns), len(original_table.columns)
+        self.assertEqual(
+            [paragraph.text for paragraph in annotated.paragraphs],
+            [paragraph.text for paragraph in original.paragraphs],
+        )
+        self.assertFalse(
+            any(
+                paragraph.text.startswith("#")
+                for paragraph in annotated.paragraphs
             )
-            for row_index, original_row in enumerate(original_table.rows):
-                for column_index, original_cell in enumerate(original_row.cells):
-                    annotated_cell = annotated_table.rows[row_index].cells[column_index]
-                    self.assertEqual(
-                        annotated_cell.paragraphs[0].text,
-                        original_cell.paragraphs[0].text,
-                    )
+        )
+        self.assertEqual(
+            _table_text_snapshot(annotated.tables),
+            _table_text_snapshot(original.tables),
+        )
 
 
 class WordAnnotationTests(AnnotationTestBase):
@@ -246,21 +367,27 @@ class WordAnnotationTests(AnnotationTestBase):
             self.assertTrue(docx_path.name.endswith("_annotated.docx"))
             self.assertTrue(docx_path.is_file())
 
-            annotated = Document(str(docx_path))
-            original_paragraph = self.paragraph_record(1).text
-            texts = [paragraph.text for paragraph in annotated.paragraphs]
-            original_index = texts.index(original_paragraph)
-            annotation_paragraph = annotated.paragraphs[original_index + 1]
-            self.assert_red_paragraph(annotation_paragraph)
-            self.assertIn("[合成测试数据]", annotation_paragraph.text)
-            self.assertIn("原文：", annotation_paragraph.text)
-            self.assertIn("建议核实：", annotation_paragraph.text)
-
-            cell = annotated.tables[0].rows[1].cells[1]
-            self.assertEqual(cell.paragraphs[0].text, "85")
-            self.assert_red_paragraph(cell.paragraphs[-1])
-            self.assertIn("[合成测试数据]", cell.paragraphs[-1].text)
-
+            body_annotation = next(
+                item
+                for item in result.report.annotations
+                if item.issue_id == "word-paragraph"
+            )
+            table_annotation = next(
+                item
+                for item in result.report.annotations
+                if item.issue_id == "word-cell"
+            )
+            _assert_native_comment_annotation(docx_path, body_annotation)
+            _assert_native_comment_annotation(docx_path, table_annotation)
+            self.assertEqual(
+                body_annotation.comment_text,
+                build_comment_text(issues[0]),
+            )
+            self.assertEqual(
+                table_annotation.comment_text,
+                build_comment_text(issues[1]),
+            )
+            self.assertEqual(len(_comments(docx_path)), 2)
             self.assert_original_word_preserved(docx_path)
 
             self.assertTrue(result.json_path.is_file())
@@ -287,16 +414,66 @@ class WordAnnotationTests(AnnotationTestBase):
                 output_dir=root / "annotated",
                 report_dir=root / "reports",
             )
+            self.assertEqual(
+                [item.status for item in result.report.annotations],
+                ["applied", "skipped"],
+            )
+            self.assertEqual(
+                result.report.metadata["annotation_task"]["counts"],
+                {"total": 2, "applied": 1, "failed": 0, "manual_review": 1},
+            )
+            first = result.report.annotations[0]
+            second = result.report.annotations[1]
+            self.assertIn(
+                second.error,
+                {"overlapping_comment_range", "existing_comment_range"},
+            )
             docx_path = next(
                 path for path in result.output_files if path.suffix == ".docx"
             )
-            annotated = Document(str(docx_path))
-            cell = annotated.tables[0].rows[2].cells[1]
-            self.assertEqual(len(cell.paragraphs), 3)
-            self.assert_red_paragraph(cell.paragraphs[-2])
-            self.assert_red_paragraph(cell.paragraphs[-1])
-            self.assertIn("同一单元格问题一", cell.paragraphs[-2].text)
-            self.assertIn("同一单元格问题二", cell.paragraphs[-1].text)
+            _assert_native_comment_annotation(docx_path, first)
+            self.assertEqual(len(_comments(docx_path)), 1)
+            self.assert_original_word_preserved(docx_path)
+
+    def test_same_paragraph_non_overlapping_comments(self) -> None:
+        record = self.paragraph_record(1)
+        text = record.text.strip()
+        self.assertGreater(len(text), 8)
+        first_anchor = text[:4]
+        second_anchor = text[-4:]
+        self.assertNotEqual(first_anchor, second_anchor)
+        issues = [
+            self.word_paragraph_issue(
+                "non-overlap-1",
+                index=1,
+                original_text=first_anchor,
+            ),
+            self.word_paragraph_issue(
+                "non-overlap-2",
+                index=1,
+                original_text=second_anchor,
+            ),
+        ]
+        locations = self.located(issues)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            result = annotate_issues(
+                self.batch,
+                issues,
+                locations,
+                output_dir=root / "annotated",
+                report_dir=root / "reports",
+            )
+            self.assertEqual(
+                [item.status for item in result.report.annotations],
+                ["applied", "applied"],
+            )
+            docx_path = next(
+                path for path in result.output_files if path.suffix == ".docx"
+            )
+            for annotation in result.report.annotations:
+                _assert_native_comment_annotation(docx_path, annotation)
+            self.assertEqual(len(_comments(docx_path)), 2)
             self.assert_original_word_preserved(docx_path)
 
     def test_non_located_statuses_are_not_annotated(self) -> None:
@@ -372,14 +549,14 @@ class WordAnnotationTests(AnnotationTestBase):
             docx_path = next(
                 path for path in result.output_files if path.suffix == ".docx"
             )
-            annotated = Document(str(docx_path))
-            annotations = [
-                paragraph
-                for paragraph in annotated.paragraphs
-                if paragraph.text.startswith("#")
+            applied = [
+                item
+                for item in result.report.annotations
+                if item.status == "applied"
             ]
-            self.assertEqual(len(annotations), 1)
-            self.assertNotIn("歧义问题", "\n".join(p.text for p in annotated.paragraphs))
+            self.assertEqual(len(applied), 1)
+            _assert_native_comment_annotation(docx_path, applied[0])
+            self.assertEqual(len(_comments(docx_path)), 1)
             payload = json.loads(result.json_path.read_text(encoding="utf-8"))
             task = payload["metadata"]["annotation_task"]
             self.assertEqual(len(task["manual_review"]), 4)
@@ -394,11 +571,16 @@ class WordAnnotationTests(AnnotationTestBase):
             verification_status=VERIFICATION_VERIFIED,
             verification_method="decimal",
         )
-        issue = self.word_paragraph_issue(
+        issue = _synthetic_issue(
             "verified-calculation",
-            index=3,
-            description="已验证计算",
-            suggestion="不应使用的未验证建议",
+            "verified calculation",
+            self.word_table.rows[2][1],
+            self.word_cell_location(
+                2,
+                1,
+                value_row=2,
+                value_column=1,
+            ),
             calculation=calculation,
         )
         location = locate_issue(self.batch, issue)
@@ -414,40 +596,40 @@ class WordAnnotationTests(AnnotationTestBase):
             docx_path = next(
                 path for path in result.output_files if path.suffix == ".docx"
             )
-            annotated = Document(str(docx_path))
-            annotation = next(
-                paragraph
-                for paragraph in annotated.paragraphs
-                if paragraph.text.startswith("#")
+            annotation = result.report.annotations[0]
+            self.assertEqual(annotation.status, "applied")
+            self.assertEqual(annotation.metadata["anchor_text"], "12.5")
+            _assert_native_comment_annotation(docx_path, annotation)
+            self.assertIn(
+                "\u7ecf\u8ba1\u7b97\u4e3a 15 %",
+                annotation.comment_text,
             )
-            self.assertIn("经计算为 15 %", annotation.text)
-            self.assertNotIn("不应使用的未验证建议", annotation.text)
+            self.assertNotIn(
+                "\u4e0d\u5e94\u4f7f\u7528\u7684\u672a\u9a8c\u8bc1\u5efa\u8bae",
+                annotation.comment_text,
+            )
+            self.assert_original_word_preserved(docx_path)
 
     def test_word_writer_failure_is_reported(self) -> None:
         issue = self.word_paragraph_issue("writer-failure", index=1)
         location = locate_issue(self.batch, issue)
         self.assertEqual(location.locator_status, LOCATION_LOCATED)
-        broken_location = LocationResult(
-            issue_id=issue.issue_id,
-            document_id=self.word.document_id,
-            file_type="word",
-            locator_status=LOCATION_LOCATED,
-            table_index=99,
-            row_index=0,
-            column_index=0,
-            locator_confidence=0.9,
-            needs_manual_review=False,
-            source_location=location.source_location,
-        )
+        source_hash = _sha256(Path(self.word.source_file))
+
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            result = annotate_issues(
-                self.batch,
-                [issue],
-                [broken_location],
-                output_dir=root / "annotated",
-                report_dir=root / "reports",
-            )
+            with mock.patch.object(
+                word_annotator,
+                "add_span_comment",
+                side_effect=RuntimeError("writer failed"),
+            ):
+                result = annotate_issues(
+                    self.batch,
+                    [issue],
+                    [location],
+                    output_dir=root / "annotated",
+                    report_dir=root / "reports",
+                )
             self.assertEqual(result.output_files, [])
             counts = result.report.metadata["annotation_task"]["counts"]
             self.assertEqual(counts["applied"], 0)
@@ -455,11 +637,46 @@ class WordAnnotationTests(AnnotationTestBase):
             self.assertEqual(counts["manual_review"], 0)
             annotation = result.report.annotations[0]
             self.assertEqual(annotation.status, "failed")
-            self.assertEqual(annotation.error, "table_index_out_of_range")
-            payload = json.loads(result.json_path.read_text(encoding="utf-8"))
-            self.assertEqual(
-                len(payload["metadata"]["annotation_task"]["failed"]), 1
+            self.assertEqual(annotation.error, "word_comment_creation_failed")
+            self.assertIn(
+                "writer failed",
+                annotation.metadata.get("error_detail", ""),
             )
+
+        self.assertEqual(_sha256(Path(self.word.source_file)), source_hash)
+
+    def test_word_save_failure_is_reported(self) -> None:
+        issue = self.word_paragraph_issue("save-failure", index=1)
+        location = locate_issue(self.batch, issue)
+        source_hash = _sha256(Path(self.word.source_file))
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with mock.patch.object(
+                DocumentClass,
+                "save",
+                side_effect=RuntimeError("save failed"),
+            ):
+                result = annotate_issues(
+                    self.batch,
+                    [issue],
+                    [location],
+                    output_dir=root / "annotated",
+                    report_dir=root / "reports",
+                )
+            self.assertEqual(result.output_files, [])
+            counts = result.report.metadata["annotation_task"]["counts"]
+            self.assertEqual(counts["applied"], 0)
+            self.assertEqual(counts["failed"], 1)
+            annotation = result.report.annotations[0]
+            self.assertEqual(annotation.status, "failed")
+            self.assertEqual(annotation.error, "word_save_failed")
+            self.assertIn(
+                "save failed",
+                annotation.metadata.get("error_detail", ""),
+            )
+
+        self.assertEqual(_sha256(Path(self.word.source_file)), source_hash)
 
     def test_reports_and_unique_outputs(self) -> None:
         issue = self.word_paragraph_issue("unique", index=1)

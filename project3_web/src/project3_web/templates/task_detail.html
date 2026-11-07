@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+{% block title %}审核结果 · {{ task.task_id }}{% endblock %}
+{% block content %}
+<section class="section">
+  <div class="section-heading">
+    <div>
+      <p class="eyebrow">审核结果</p>
+      <h1>{{ task.status_message or status_label }}</h1>
+      <p class="mono muted">{{ task.task_id }}</p>
+    </div>
+    <div class="actions compact">
+      {% if is_processing %}
+      <a class="button" href="/tasks/{{ task.task_id }}/status">查看处理状态</a>
+      {% endif %}
+      <a class="button" href="/tasks">返回任务列表</a>
+    </div>
+  </div>
+
+  {% if task.error %}
+  <div class="alert error"><strong>任务失败：</strong>{{ task.error }}</div>
+  {% endif %}
+
+  {% set counts = task.audit.counts if task.audit and task.audit.counts else {} %}
+  {% set typo = task.audit.typo_counts if task.audit and task.audit.typo_counts else {} %}
+
+  <div class="metric-grid">
+    <div class="metric"><span>提取记录</span><strong>{{ counts.get('record_count', task.extraction.record_count if task.extraction else 0) }}</strong></div>
+    <div class="metric"><span>审核问题</span><strong>{{ counts.get('issue_count', 0) }}</strong></div>
+    <div class="metric"><span>错别字问题</span><strong>{{ typo.get('typo_issue_count', 0) }}</strong></div>
+    <div class="metric"><span>成功定位</span><strong>{{ counts.get('located_count', 0) }}</strong></div>
+    <div class="metric good"><span>批注成功</span><strong>{{ counts.get('annotation_applied_count', 0) }}</strong></div>
+    <div class="metric bad"><span>批注失败</span><strong>{{ counts.get('annotation_failed_count', 0) }}</strong></div>
+    <div class="metric warn"><span>人工复核</span><strong>{{ counts.get('annotation_manual_review_count', 0) }}</strong></div>
+    <div class="metric"><span>完整成功</span><strong>{{ "是" if task.audit and task.audit.complete_success else "否" }}</strong></div>
+  </div>
+
+  <div class="grid-two">
+    <section class="card">
+      <h2>提取与验证状态</h2>
+      <dl class="kv">
+        <dt>已验证</dt><dd>{{ counts.get('verified_count', 0) }}</dd>
+        <dt>未验证</dt><dd>{{ counts.get('unverified_count', 0) }}</dd>
+        <dt>问题级人工复核标记</dt><dd>{{ counts.get('issues_flagged_for_manual_review', 0) }}</dd>
+        <dt>高置信度错别字</dt><dd>{{ typo.get('typo_verified_count', 0) }}</dd>
+        <dt>错别字人工复核</dt><dd>{{ typo.get('typo_manual_review_count', 0) }}</dd>
+        <dt>合成测试数据</dt><dd>{{ "是" if task.audit and task.audit.synthetic_data else "否" }}</dd>
+      </dl>
+      <p class="muted small">未验证表示没有找到可验证的明确计算表达式，不表示审核通过。</p>
+    </section>
+
+    <section class="card">
+      <h2>任务信息</h2>
+      <dl class="kv">
+        <dt>创建时间</dt><dd>{{ task.created_at }}</dd>
+        <dt>完成时间</dt><dd>{{ task.completed_at or "-" }}</dd>
+        <dt>上传文件数</dt><dd>{{ task.uploads|length }}</dd>
+        <dt>提取文档数</dt><dd>{{ task.extraction.document_count if task.extraction else 0 }}</dd>
+        <dt>批次编号</dt><dd class="mono">{{ task.extraction.batch_id if task.extraction else "-" }}</dd>
+      </dl>
+    </section>
+  </div>
+
+  {% if task.extraction and task.extraction.documents %}
+  <section class="card">
+    <h2>文档处理状态</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>文件</th><th>类型</th><th>记录数</th><th>表格数</th><th>状态</th><th>说明</th></tr>
+        </thead>
+        <tbody>
+          {% for document in task.extraction.documents %}
+          <tr>
+            <td>{{ document.source_name }}</td>
+            <td>{{ document.file_type }}</td>
+            <td>{{ document.record_count }}</td>
+            <td>{{ document.table_count }}</td>
+            <td>
+              {% if document.succeeded %}
+              <span class="status status-completed">成功</span>
+              {% else %}
+              <span class="status status-failed">失败</span>
+              {% endif %}
+            </td>
+            <td>{{ document.error or "-" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% endif %}
+
+  {% if task.audit and task.audit.issues %}
+  <section class="card">
+    <h2>审核问题</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>编号</th><th>类型</th><th>描述</th><th>原文</th><th>人工复核</th><th>建议</th></tr>
+        </thead>
+        <tbody>
+          {% for issue in task.audit.issues %}
+          <tr>
+            <td class="mono">{{ issue.issue_id }}</td>
+            <td>{{ issue.issue_type }}</td>
+            <td>{{ issue.description }}</td>
+            <td>{{ issue.original_text }}</td>
+            <td>{{ "是" if issue.needs_manual_review else "否" }}</td>
+            <td>{{ issue.suggestion or "-" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% endif %}
+
+  {% if task.audit and task.audit.annotations %}
+  <section class="card">
+    <h2>批注结果</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>问题编号</th><th>状态</th><th>类型</th><th>锚点</th><th>批注 ID</th><th>失败原因</th></tr>
+        </thead>
+        <tbody>
+          {% for annotation in task.audit.annotations %}
+          <tr>
+            <td class="mono">{{ annotation.issue_id }}</td>
+            <td><span class="status status-{{ annotation.status }}">{{ annotation.status }}</span></td>
+            <td>{{ annotation.annotation_kind or "-" }}</td>
+            <td>{{ annotation.anchor_text or "-" }}</td>
+            <td>{{ annotation.comment_id if annotation.comment_id is not none else "-" }}</td>
+            <td>{{ annotation.error or "-" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% endif %}
+
+  {% if task.warnings or (task.audit and task.audit.warnings) or (task.audit and task.audit.errors) %}
+  <section class="card">
+    <h2>警告与错误</h2>
+    <ul class="alert-list">
+      {% for warning in task.warnings %}
+      <li class="warn">{{ warning }}</li>
+      {% endfor %}
+      {% if task.audit %}
+        {% for warning in task.audit.warnings %}
+        <li class="warn">{{ warning }}</li>
+        {% endfor %}
+        {% for error in task.audit.errors %}
+        <li class="error">{{ error }}</li>
+        {% endfor %}
+      {% endif %}
+    </ul>
+  </section>
+  {% endif %}
+
+  <section class="card">
+    <h2>文件下载</h2>
+    {% if artifact_items %}
+    <div class="download-grid">
+      {% for artifact in artifact_items %}
+      <a class="download-card" href="/tasks/{{ task.task_id }}/download/{{ artifact.id }}">
+        <span class="download-kind">{{ artifact.kind|upper }}</span>
+        <strong>{{ artifact.label }}</strong>
+        <small>{{ artifact.filename }}</small>
+      </a>
+      {% endfor %}
+    </div>
+    {% if not has_annotated_artifact %}
+    <div class="notice">
+      {% if task.audit and task.audit.counts and task.audit.counts.get('issue_count', 0) == 0 %}
+      本次未发现审核问题，因此没有生成标注副本；审核报告仍可下载。
+      {% elif task.audit and task.audit.counts and task.audit.counts.get('annotation_applied_count', 0) == 0 %}
+      没有成功写入批注或标记，因此没有生成标注副本；请查看警告和人工复核信息。
+      {% else %}
+      本次没有生成可下载的标注副本。
+      {% endif %}
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="empty">
+      {% if task.status == "failed" %}
+      任务失败，没有可下载的审核输出。
+      {% elif task.audit and task.audit.counts and task.audit.counts.get('issue_count', 0) == 0 %}
+      本次未发现审核问题，因此没有生成标注副本。
+      {% elif task.audit and task.audit.counts and task.audit.counts.get('annotation_applied_count', 0) == 0 %}
+      没有成功写入批注或标记，因此没有生成标注副本。
+      {% else %}
+      当前没有可下载的文件。
+      {% endif %}
+    </div>
+    {% endif %}
+  </section>
+</section>
+{% endblock %}

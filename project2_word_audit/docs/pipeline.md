@@ -11,7 +11,7 @@
   -> 错别字检查
   -> 审核问题收集（数学 + 错别字）
   -> Word/PDF 定位
-  -> Word 红色批注 / PDF 红色矩形标记
+  -> Word 原生批注 / PDF 红色矩形标记
   -> 完整 JSON/Markdown 审核报告
 ```
 
@@ -38,6 +38,8 @@ main.py
        -> location.locate_issues()
        -> annotation.annotate_issues()
             -> word_annotator
+                 -> word_target.resolve_word_target()
+                 -> word_comments.add_span_comment()
             -> pdf_annotator
        -> save_validation_result()
        -> 完整 audit_report JSON / Markdown
@@ -230,10 +232,12 @@ annotation
 ## 9. Word 批注
 
 - 只处理 `LocationResult.locator_status == "located"` 且 `file_type == "word"` 的问题。
-- 正文问题：在目标段落后新增红色批注段落。
-- 表格问题：在目标单元格末尾新增红色批注段落。
-- 批注以 `#` 开头。
-- 同一位置多个问题按输入顺序添加。
+- 使用 `resolve_word_target()` 得到稳定的 `ParagraphPosition`、`anchor_text` 和 `occurrence_index`。
+- 正文、表格单元格和嵌套表格段落都通过 `find_document_paragraph()` 定位；写入时使用 `index_paragraph(..., include_existing_comments=False)`。
+- 数学问题只锚定 `reported_value` 对应的数字 token；不使用 `raw_expression`、`computed_value`、`matched_text` 或整个单元格文本作为锚点。
+- 错别字问题只锚定错误词；低置信度、重复或重叠锚点无法唯一定位时返回 `skipped` 并进入人工核实。
+- 使用 `add_span_comment()` 写入 OOXML 原生批注，不向正文插入红色段落。
+- 保留文档中已有批注；批注事务失败时回滚本次操作，不删除已有批注。
 - 原始 Word 只读，输出写入 `<output-dir>/annotated/<原名>_annotated.docx`。
 - 只使用 `AuditIssue` 的真实描述、原文、建议和已验证计算值。
 
@@ -296,8 +300,8 @@ annotation
 - 错别字检查只覆盖人工确认词典和已知词语重复字，不做任意编辑距离或拼音自动推断。
 - 不在保护词、企业名称或标准编号范围内的不熟悉专有名词仍可能需要人工确认。
 - 漏字/多字不做无依据的自动推断；只覆盖明确规则和人工确认词典。
-- Word 批注是红色文字段落，不是 Word 原生批注。
-- Word 定位到段落/单元格，不提供单元格内字符偏移。
+- Word 使用 OOXML 原生批注；数学/错别字锚点不精确或冲突时安全跳过。
+- Word 原生批注尚未经过 Microsoft Word GUI 人工验证，当前以 OOXML 结构测试验证。
 - PDF 标记依赖项目一 bbox 和文本层。
 - PDF 旋转页和扫描件不自动标记。
 - 不开发 GUI。

@@ -343,7 +343,10 @@ def annotate_issues(
             continue
         if document.file_type == "word":
             document_annotations, output_path = annotate_word_document(
-                document, items, output_dir
+                batch,
+                document,
+                items,
+                output_dir,
             )
         elif document.file_type == "pdf":
             document_annotations, output_path = annotate_pdf_document(

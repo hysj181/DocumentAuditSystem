@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}任务状态 · 文档智能审核系统{% endblock %}
+{% block content %}
+<section class="section narrow">
+  <p class="eyebrow">任务状态</p>
+  <div class="status-hero status-bg-{{ task.status }}">
+    <div>
+      <span class="status status-{{ task.status }}">{{ status_label }}</span>
+      <h1>{{ task.status_message or status_label }}</h1>
+      <p class="mono">{{ task.task_id }}</p>
+    </div>
+    {% if is_processing %}<div class="spinner" aria-label="处理中"></div>{% endif %}
+  </div>
+
+  {% if task.error %}
+  <div class="alert error">{{ task.error }}</div>
+  {% endif %}
+
+  <div class="card">
+    <h2>上传文件</h2>
+    <ul class="plain-list">
+      {% for upload in task.uploads %}
+      <li>
+        <span>{{ upload.original_name }}</span>
+        <span class="muted">{{ (upload.size / 1024)|round(1) }} KB</span>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  {% if is_processing %}
+  <div class="notice">
+    系统正在调用项目一提取文档并调用项目二执行审核。此页面会自动刷新。
+  </div>
+  {% else %}
+  <div class="actions">
+    <a class="button primary" href="/tasks/{{ task.task_id }}">查看审核结果</a>
+    <a class="button" href="/tasks">返回任务列表</a>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}
+{% block scripts %}
+{% if is_processing %}
+<script>
+  window.setTimeout(() => window.location.reload(), 3000);
+</script>
+{% endif %}
+{% endblock %}

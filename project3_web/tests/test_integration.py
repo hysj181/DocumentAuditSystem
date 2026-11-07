@@ -5,9 +5,8 @@ from pathlib import Path
 
 from doc_extractor.api import extract_files, save_batch
 from fastapi.testclient import TestClient
-from word_audit.pipeline import run_audit
-
 from project3_web.app import create_app
+from word_audit.pipeline import run_audit
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 TEST_DATA = REPO_ROOT / "project1_extraction" / "test_data"

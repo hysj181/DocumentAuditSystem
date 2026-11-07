@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}审核任务 · 文档智能审核系统{% endblock %}
+{% block content %}
+<section class="section">
+  <div class="section-heading">
+    <div>
+      <p class="eyebrow">任务管理</p>
+      <h1>审核任务</h1>
+    </div>
+    <a class="button primary" href="/upload">新建任务</a>
+  </div>
+
+  {% if tasks %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>任务编号</th>
+          <th>创建时间</th>
+          <th>状态</th>
+          <th>上传文件</th>
+          <th>问题数</th>
+          <th>批注成功</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for task in tasks %}
+        <tr>
+          <td class="mono">{{ task.task_id }}</td>
+          <td>{{ task.created_at }}</td>
+          <td><span class="status status-{{ task.status }}">{{ status_labels.get(task.status, task.status) }}</span></td>
+          <td>{{ task.uploads|length }}</td>
+          <td>{{ task.audit.counts.issue_count if task.audit and task.audit.counts else "-" }}</td>
+          <td>{{ task.audit.counts.annotation_applied_count if task.audit and task.audit.counts else "-" }}</td>
+          <td class="right"><a href="/tasks/{{ task.task_id }}">详情</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty">暂无审核任务。</div>
+  {% endif %}
+</section>
+{% endblock %}

@@ -32,6 +32,8 @@ project1_extraction/output/markdown/*
 !project1_extraction/output/markdown/.gitkeep
 project2_word_audit/output/
 project3_cli_workflow/output/
+project3_web/output/
+project3_web/data/
 
 # Logs
 logs/
